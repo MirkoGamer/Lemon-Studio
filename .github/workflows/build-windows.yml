@@ -1,0 +1,47 @@
+name: Build Lemon Studio (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build Windows App
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Lemon Studio App
+        run: cargo build -p os-app --release
+
+      - name: Bundle VST3 and CLAP Plugins
+        run: cargo run -p bundle-plugins --release
+        continue-on-error: true
+
+      - name: Package Application
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path ./Lemon-Studio-Windows -Force
+          Copy-Item target/release/lemonstudio.exe ./Lemon-Studio-Windows/
+          if (Test-Path target/bundled) {
+            Copy-Item -Recurse target/bundled ./Lemon-Studio-Windows/Plugins
+          }
+          if (Test-Path README.md) {
+            Copy-Item README.md ./Lemon-Studio-Windows/
+          }
+          if (Test-Path LICENSE) {
+            Copy-Item LICENSE ./Lemon-Studio-Windows/
+          }
+
+      - name: Upload Windows App Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lemon-Studio-Windows-x64
+          path: ./Lemon-Studio-Windows
+          retention-days: 14
